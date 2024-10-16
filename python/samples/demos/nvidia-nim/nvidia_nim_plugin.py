@@ -19,24 +19,30 @@ from openai import OpenAI
 # 
 # Please Replace the url with the real NIM endpoint.
 #
-nim_url = "http://0.0.0.0:8000/v1"
+nim_url = "<nim_endpoint_url>/v1"
 
 class NLlama3Plugin:
     """A sample plugin that provides response from NIM."""
-
+ 
     @kernel_function(name="get_nllama3_opinion", description="Get the opinion of nllama3")
     def get_nllama3_opinion(self, question: Annotated[str, "The input question"]) -> Annotated[str, "The output is a string"]:
-        
+       
         prompt = question.replace("nllama3", "you")
         # Make sure model name match the model of NIM you deploy
-        client = OpenAI(base_url=nim_url, api_key="not-used")
-        response = client.completions.create(
+        headers = {
+            'azureml-model-deployment': '<azureml_deployment_name>',
+        }
+        client = OpenAI(base_url=nim_url, api_key="<nim_api_key>",default_headers = headers)
+        messages = [
+            {"content": prompt, "role": "user"}
+        ]        
+        response = client.chat.completions.create(
             model="meta/llama-3.1-8b-instruct",
-            prompt=prompt,
+            messages=messages,
             max_tokens=64,
             stream=False
         )
-        completion = response.choices[0].text
+        completion = response.choices[0].message
         return completion
 
 
@@ -49,6 +55,9 @@ async def main():
         # Please make sure your AzureOpenAI Deployment allows for function calling
         ai_service = AzureChatCompletion(
             service_id=service_id,
+            endpoint='<OpenAI_endpoint>',
+            deployment_name='<OpenAI_deployment_name>',
+            api_key='<OpenAI_api_key>'
         )
     else:
         ai_service = OpenAIChatCompletion(
@@ -70,9 +79,9 @@ async def main():
 
     print(
         await kernel.invoke_prompt(
-            function_name="prompt_test",
-            plugin_name="weather_test",
-            prompt="What does nllama3 think about global warming?",
+            function_name="get_nllama3_opinion",
+            plugin_name="nllama3",
+            prompt="What does nllama3 knows about NVIDIA H100?",
             settings=settings,
         )
     )
@@ -87,9 +96,9 @@ async def main():
     )
 
     result = kernel.invoke_prompt_stream(
-        function_name="prompt_test",
-        plugin_name="weather_test",
-        prompt="What does nllama3 think about global warming?",
+        function_name="get_nllama3_opinion",
+        plugin_name="nllama3",
+        prompt="What does nllama3 knows about NVIDIA H100?",
         settings=settings,
     )
 
@@ -109,7 +118,7 @@ async def main():
         auto_invoke=False, filters={"included_plugins": ["nllama3"]}
     )
     chat_history.add_user_message(
-        "What does nllama3 think about global warming?"
+        "What does nllama3 knows about NVIDIA H100?"
     )
 
     while True:
